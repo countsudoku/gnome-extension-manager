@@ -8,9 +8,11 @@ The following commndas are planed:
 * update  
     check for outdated plugins and update them
 * activate  
-    Activate the plugin
+    Activate the extension
+* deactivate  
+    deactivate a extension
 * remove  
-    deinstall the plugin
+    deactivate and deinstall the plugin
 * purge  
     deinstall the plugin and remove the configuration
 
