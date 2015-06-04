@@ -55,7 +55,6 @@ def update_catalog(catalog_file, url):
 
     dependencies: gnome_query, get_gnome_shell_version
     """
-    shell_version = get_gnome_shell_version()
 
     if not os.path.exists(catalog_file):
         directory = os.path.dirname(catalog_file)
@@ -69,7 +68,19 @@ def update_catalog(catalog_file, url):
             )
 
     with open(catalog_file, 'w') as f:
-        json.dump({"shell_version": "3.4", "extensions": catalog}, f)
+        json.dump({"extensions": catalog}, f)
+
+def install_extension(extensions, catalog_file, url, shell_version):
+    try:
+        with open(catalog_file, 'r') as f:
+            catalog = json.load(f)
+    except IOError as e:
+        print("Can't find catalog file please run '{0} update' first".format(__file__))
+        return 1
+
+    for extension in extensions:
+        print extension
+
 
 def init_argparser():
     """
@@ -121,5 +132,10 @@ if __name__ == '__main__':
             'gnome-extension-manager',
             'catalog.json')
 
+    shell_version = get_gnome_shell_version()
+
     if args.command == 'update':
         update_catalog(catalog_file, BASE_URL)
+    elif args.command == 'install':
+        install_extension(args.extensions, catalog_file, BASE_URL, shell_version)
+
