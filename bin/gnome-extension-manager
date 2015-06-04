@@ -15,6 +15,7 @@ import json
 import os
 import sys
 import tempfile
+import zipfile
 
 #TODO: The url should be configurable
 BASE_URL = 'https://extensions.gnome.org'
@@ -24,7 +25,7 @@ CONFIG_DIR = os.getenv('XDG_CONFIG_HOME',
 CACHE_DIR = os.getenv('XDG_CACHE_HOME',
         os.path.join(os.environ['HOME'], '.cache'))
 DATA_DIR = os.getenv('XDG_DATA_HOME',
-        os.path.join(os.environ['HOME'], '.share'))
+        os.path.join(os.environ['HOME'], '.local/share'))
 
 INSTALL_DIR = os.path.join(DATA_DIR, 'gnome-shell', 'extensions')
 
@@ -70,8 +71,15 @@ def gnome_query(baseurl, query, part=''):
         return json.loads(info)
     else:
         return json.loads(info)[part]
+def download_progress(bytes_so_far, chunk_size, total_size):
+    percent = float(bytes_so_far)/total_size
+    percent = round(percent*100, 2)
+    print "downloaded {0} % of {1} bytes".format(percent, total_size)
 
-def download_extension(url, dest_file):
+def download_extension(url, dest_file, report_hook=None):
+    """
+    Download the given url to a file and reports the progress
+    """
     try:
         response = urllib2.urlopen(url)
     except urllib2.HTTPError, e:
@@ -84,6 +92,20 @@ def download_extension(url, dest_file):
         sys.exit(1)
     total_size = response.info().getheader('Content-Length')
     total_size = int(total_size)
+    bytes_so_far = 0
+    chunk_size = 1024 * 8
+
+    while True:
+        chunk = response.read(chunk_size)
+        bytes_so_far += len(chunk)
+
+        if not chunk:
+            break
+
+        dest_file.write(chunk)
+
+        if report_hook:
+            report_hook(bytes_so_far, chunk_size, total_size)
 
 def update_catalog(catalog_file, url):
     """
@@ -148,7 +170,22 @@ def find_in_catalog(catalog, extension, shell_version):
             "uuid": catalog[catalog_num]["uuid"],
             }
 
-def install_extension(extensions, catalog_file, url, shell_version):
+def install_extension(url, install_dir, uuid, install_pk):
+    with tempfile.SpooledTemporaryFile() as f:
+        print("download extension {0}".format(uuid))
+        download_extension(
+                "{0}/download-extension/{1}.shell-extension.zip?version_tag={2}".format(url, uuid, install_pk),
+                f,
+                report_hook=download_progress
+                )
+        print("install extension {0}".format(uuid))
+        install_directory = os.path.join(install_dir, uuid)
+        if not os.path.exists(install_directory):
+            os.makedirs(install_directory)
+        with zipfile.ZipFile(f, 'r') as z:
+            z.extractall(install_directory)
+
+def install_all_extensions(extensions, catalog_file, url, shell_version, install_dir):
     try:
         with open(catalog_file, 'r') as f:
             catalog = json.load(f)['extensions']
@@ -158,13 +195,7 @@ def install_extension(extensions, catalog_file, url, shell_version):
 
     for extension in extensions:
         ext_info = find_in_catalog(catalog, extension, shell_version)
-        print ext_info["uuid"], ext_info["install_pk"]
-
-        with tempfile.SpooledTemporaryFile() as f:
-            download_extension(
-                    "{0}/download-extension/{1}.shell-extension.zip?version_tag={2}".format(url, ext_info["uuid"], ext_info["install_pk"]),
-                    f
-                    )
+        install_extension(url, install_dir, ext_info["uuid"], ext_info["install_pk"])
 
 
 def init_argparser():
@@ -222,5 +253,4 @@ if __name__ == '__main__':
     if args.command == 'update':
         update_catalog(catalog_file, BASE_URL)
     elif args.command == 'install':
-        install_extension(args.extensions, catalog_file, BASE_URL, shell_version)
-
+        install_all_extensions(args.extensions, catalog_file, BASE_URL, shell_version, INSTALL_DIR)
