@@ -13,6 +13,8 @@ import re
 import urllib2
 import json
 import os
+import sys
+import tempfile
 
 #TODO: The url should be configurable
 BASE_URL = 'https://extensions.gnome.org'
@@ -34,18 +36,54 @@ def get_gnome_shell_version():
     gnome_shell_version = re.sub(r'^\s*GNOME\s*Shell\s*((\d+\.)+\d+).*$', r'\1',
             subprocess.check_output(['gnome-shell', '--version'])
             )
-    return gnome_shell_version
+    return gnome_shell_version.rstrip()
+
+def gnome_versions_stack(version):
+    split_version = version.split('.')
+    versions = []
+    while split_version:
+        versions.append('.'.join(split_version))
+        del split_version[-1]
+
+    versions.reverse()
+
+    return versions
 
 def gnome_query(baseurl, query, part=''):
     """
     This function downloads the catalog from the given url with the given
     query
     """
-    info = urllib2.urlopen('{0}/{1}'.format(baseurl, query)).read()
+    try:
+        response = urllib2.urlopen('{0}/{1}'.format(baseurl, query))
+    except urllib2.HTTPError, e:
+        print 'The server couldn\'t fulfill the request.'
+        print 'Error code: ', e.code
+        sys.exit(1)
+    except urllib2.URLError, e:
+        print 'We failed to reach a server.'
+        print 'Reason: ', e.reason
+        sys.exit(1)
+
+    info = response.read()
     if part == '':
         return json.loads(info)
     else:
         return json.loads(info)[part]
+
+def download_extension(url, dest_file):
+    try:
+        response = urllib2.urlopen(url)
+    except urllib2.HTTPError, e:
+        print 'The server couldn\'t fulfill the request.'
+        print 'Error code: ', e.code
+        sys.exit(1)
+    except urllib2.URLError, e:
+        print 'We failed to reach a server.'
+        print 'Reason: ', e.reason
+        sys.exit(1)
+    total_size = response.info().getheader('Content-Length')
+    total_size = int(total_size)
 
 def update_catalog(catalog_file, url):
     """
@@ -70,16 +108,63 @@ def update_catalog(catalog_file, url):
     with open(catalog_file, 'w') as f:
         json.dump({"extensions": catalog}, f)
 
+def find_in_catalog(catalog, extension, shell_version):
+    """
+    Find the Extension in the catalog and return some usefull information
+    """
+    if re.match(r'^\d+$', extension):
+        ext_type = "pk"
+        extension = int(extension)
+    elif re.match(r'^.*@.*', extension):
+        ext_type = "uuid"
+    else:
+        raise Exception("{0}is no valid Extension UUID nor a valid Package number!".format(extension))
+
+    found = False
+    for i in range(len(catalog)):
+        if catalog[i][ext_type] == extension:
+            found = True
+            catalog_num = i
+            break
+
+    if not found:
+        raise Exception("Can't find extension {0} in the catalog".format(extension))
+
+    shell_versions_stack = gnome_versions_stack(shell_version)
+    test_version = shell_versions_stack.pop()
+
+    while test_version not in catalog[catalog_num]['shell_version_map']:
+        if not shell_versions_stack:
+            raise Exception("Can't find extension {0} for your version of GNOME Shell".format(extension))
+        else:
+            test_version = shell_versions_stack.pop()
+
+    # TODO: This should be an object
+    return {"install_pk" : catalog[catalog_num]["shell_version_map"][test_version]["pk"],
+            "version": catalog[catalog_num]["shell_version_map"][test_version]["version"],
+            "name": catalog[catalog_num]["name"],
+            "creator": catalog[catalog_num]["creator"],
+            "description": catalog[catalog_num]["description"],
+            "uuid": catalog[catalog_num]["uuid"],
+            }
+
 def install_extension(extensions, catalog_file, url, shell_version):
     try:
         with open(catalog_file, 'r') as f:
-            catalog = json.load(f)
+            catalog = json.load(f)['extensions']
     except IOError as e:
         print("Can't find catalog file please run '{0} update' first".format(__file__))
-        return 1
+        sys.exit(1)
 
     for extension in extensions:
-        print extension
+        ext_info = find_in_catalog(catalog, extension, shell_version)
+        print ext_info["uuid"], ext_info["install_pk"]
+
+        with tempfile.SpooledTemporaryFile() as f:
+            download_extension(
+                    "{0}/download-extension/{1}.shell-extension.zip?version_tag={2}".format(url, ext_info["uuid"], ext_info["install_pk"]),
+                    f
+                    )
 
 
 def init_argparser():
