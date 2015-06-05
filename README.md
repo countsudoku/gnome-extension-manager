@@ -5,7 +5,7 @@ This application should manage the extensions for gnome-shell in the user space.
 The following commndas are planed:
 * install  
     download the plugin and installed it in the right location
-* update
+* update  
     update the local extension catalog
 * upgrade  
     check for outdated plugins and update them
