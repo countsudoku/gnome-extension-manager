@@ -28,6 +28,7 @@ DATA_DIR = os.getenv('XDG_DATA_HOME',
         os.path.join(os.environ['HOME'], '.local/share'))
 
 INSTALL_DIR = os.path.join(DATA_DIR, 'gnome-shell', 'extensions')
+GLOBAL_INSTALL_DIR = '/usr/share/gnome-shell/extensions'
 
 
 def get_gnome_shell_version():
@@ -40,6 +41,13 @@ def get_gnome_shell_version():
     return gnome_shell_version.rstrip()
 
 def gnome_versions_stack(version):
+    """
+    Returns a stack (list) of versions; with the most specific at top and the
+    unspecific at bottom.
+
+    So if you version is 3.15.1 the list is [ 3, 3.15, 3.15.1 ]
+    """
+
     split_version = version.split('.')
     versions = []
     while split_version:
@@ -72,6 +80,10 @@ def gnome_query(baseurl, query, part=''):
     else:
         return json.loads(info)[part]
 def download_progress(bytes_so_far, chunk_size, total_size):
+    """
+    A simple function, which prints the percent of progress.
+    """
+
     percent = float(bytes_so_far)/total_size
     percent = round(percent*100, 2)
     print "downloaded {0} % of {1} bytes".format(percent, total_size)
@@ -171,6 +183,10 @@ def find_in_catalog(catalog, extension, shell_version):
             }
 
 def install_extension(url, install_dir, uuid, install_pk):
+    """
+    This function should install a single extension to the user directory
+    """
+
     with tempfile.SpooledTemporaryFile() as f:
         print("download extension {0}".format(uuid))
         download_extension(
@@ -186,10 +202,16 @@ def install_extension(url, install_dir, uuid, install_pk):
             z.extractall(install_directory)
 
 def install_all_extensions(extensions, catalog_file, url, shell_version, install_dir):
+    """
+    This function get a list of extensions make some checks and then installs
+    it in the correct version. The version which is installed is obtained
+    from the catalog.
+    """
+
     try:
         with open(catalog_file, 'r') as f:
             catalog = json.load(f)['extensions']
-    except IOError as e:
+    except IOError:
         print("Can't find catalog file please run '{0} update' first".format(__file__))
         sys.exit(1)
 
