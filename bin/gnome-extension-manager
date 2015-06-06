@@ -17,19 +17,24 @@ import sys
 import tempfile
 import zipfile
 
-#TODO: The url should be configurable
-BASE_URL = 'https://extensions.gnome.org'
+# Some default values
+DEFAULT_BASE_URL = 'https://extensions.gnome.org'
 
-CONFIG_DIR = os.getenv('XDG_CONFIG_HOME',
+DEFAULT_CONFIG_DIR = os.getenv('XDG_CONFIG_HOME',
         os.path.join(os.environ['HOME'], '.config'))
-CACHE_DIR = os.getenv('XDG_CACHE_HOME',
+DEFAULT_CACHE_DIR = os.getenv('XDG_CACHE_HOME',
         os.path.join(os.environ['HOME'], '.cache'))
-DATA_DIR = os.getenv('XDG_DATA_HOME',
+DEFAULT_DATA_DIR = os.getenv('XDG_DATA_HOME',
         os.path.join(os.environ['HOME'], '.local/share'))
 
-INSTALL_DIR = os.path.join(DATA_DIR, 'gnome-shell', 'extensions')
-GLOBAL_INSTALL_DIR = '/usr/share/gnome-shell/extensions'
+DEFAULT_INSTALL_DIR = os.path.join(DEFAULT_DATA_DIR,
+        'gnome-shell',
+        'extensions')
+DEFAULT_GLOBAL_INSTALL_DIR = '/usr/share/gnome-shell/extensions'
 
+DEFAULT_CONFIG_FILE = os.path.join(DEFAULT_CONFIG_DIR,
+        'gnome-extension-manager',
+        'config.ini')
 
 def get_gnome_shell_version():
     """
@@ -228,6 +233,12 @@ def init_argparser():
 
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('-c', '--config',
+            help='specify an alternative configuratin file. (default: {0})'.format(DEFAULT_CONFIG_FILE),
+            default=DEFAULT_CONFIG_FILE,
+            dest='config_file'
+            )
+
     # Setup subcommands
     sub_commands = parser.add_subparsers(dest='command')
 
@@ -266,13 +277,14 @@ def init_argparser():
 if __name__ == '__main__':
     args, extra_args = init_argparser().parse_known_args()
 
-    catalog_file = os.path.join(CACHE_DIR,
+    catalog_file = os.path.join(DEFAULT_CACHE_DIR,
             'gnome-extension-manager',
             'catalog.json')
 
     shell_version = get_gnome_shell_version()
 
     if args.command == 'update':
-        update_catalog(catalog_file, BASE_URL)
-    elif args.command == 'install':
-        install_all_extensions(args.extensions, catalog_file, BASE_URL, shell_version, INSTALL_DIR)
+        #update_catalog(catalog_file, DEFAULT_BASE_URL)
+        print args.config_file
+    #elif args.command == 'install':
+    #    install_all_extensions(args.extensions, catalog_file, DEFAULT_BASE_URL, shell_version, DEFAULT_INSTALL_DIR)
