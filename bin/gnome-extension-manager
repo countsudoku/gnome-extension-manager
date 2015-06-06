@@ -19,18 +19,26 @@ import zipfile
 
 # Some default values
 DEFAULT_BASE_URL = 'https://extensions.gnome.org'
+DEFAULT_QUERY = '/extension-query/n_per_page=-1'
 
-DEFAULT_CONFIG_DIR = os.getenv('XDG_CONFIG_HOME',
-        os.path.join(os.environ['HOME'], '.config'))
-DEFAULT_CACHE_DIR = os.getenv('XDG_CACHE_HOME',
-        os.path.join(os.environ['HOME'], '.cache'))
-DEFAULT_DATA_DIR = os.getenv('XDG_DATA_HOME',
-        os.path.join(os.environ['HOME'], '.local/share'))
-
-DEFAULT_INSTALL_DIR = os.path.join(DEFAULT_DATA_DIR,
-        'gnome-shell',
-        'extensions')
 DEFAULT_GLOBAL_INSTALL_DIR = '/usr/share/gnome-shell/extensions'
+
+if os.getuid() == 0:
+    DEFAULT_INSTALL_DIR = DEFAULT_GLOBAL_INSTALL_DIR
+    DEFAULT_CONFIG_DIR = '/etc'
+    DEFAULT_CACHE_DIR = '/var/cache'
+else:
+    DEFAULT_HOME = os.environ['HOME']
+    DEFAULT_CONFIG_DIR = os.getenv('XDG_CONFIG_HOME',
+            os.path.join(DEFAULT_HOME, '.config'))
+    DEFAULT_CACHE_DIR = os.getenv('XDG_CACHE_HOME',
+            os.path.join(DEFAULT_HOME, '.cache'))
+    DEFAULT_DATA_DIR = os.getenv('XDG_DATA_HOME',
+            os.path.join(DEFAULT_HOME, '.local/share'))
+    DEFAULT_INSTALL_DIR = os.path.join(DEFAULT_DATA_DIR,
+            'gnome-shell',
+            'extensions')
+
 
 DEFAULT_CONFIG_FILE = os.path.join(DEFAULT_CONFIG_DIR,
         'gnome-extension-manager',
@@ -274,17 +282,49 @@ def init_argparser():
 
     return parser
 
+def init_confparser(config_file):
+    """
+    This parses the configuration file
+    """
+    import ConfigParser
+
+    parser = ConfigParser.SafeConfigParser()
+
+    parser.add_section('Catalog')
+    parser.set('Catalog', 'url', DEFAULT_BASE_URL)
+    parser.set('Catalog', 'query', DEFAULT_QUERY)
+    parser.set('Catalog', 'directory', os.path.join(DEFAULT_CACHE_DIR,
+                'gnome-extension-manager',
+                'catalog.json'
+                )
+            )
+
+    parser.add_section('Install')
+    parser.set('Install', 'directory', DEFAULT_INSTALL_DIR)
+
+    parser.read(config_file)
+
+    return parser
+
 if __name__ == '__main__':
     args, extra_args = init_argparser().parse_known_args()
 
-    catalog_file = os.path.join(DEFAULT_CACHE_DIR,
-            'gnome-extension-manager',
-            'catalog.json')
+    config = init_confparser(args.config_file)
 
-    shell_version = get_gnome_shell_version()
+    for section_name in config.sections():
+        print '[{0}]'.format(section_name)
+        for name, value in config.items(section_name):
+            print '  %s = %s' % (name, value)
+        print
 
-    if args.command == 'update':
-        #update_catalog(catalog_file, DEFAULT_BASE_URL)
-        print args.config_file
-    #elif args.command == 'install':
-    #    install_all_extensions(args.extensions, catalog_file, DEFAULT_BASE_URL, shell_version, DEFAULT_INSTALL_DIR)
+    #catalog_file = os.path.join(DEFAULT_CACHE_DIR,
+    #        'gnome-extension-manager',
+    #        'catalog.json')
+
+    #shell_version = get_gnome_shell_version()
+
+    #if args.command == 'update':
+    #    #update_catalog(catalog_file, DEFAULT_BASE_URL)
+    #    print args.config_file
+    ##elif args.command == 'install':
+    ##    install_all_extensions(args.extensions, catalog_file, DEFAULT_BASE_URL, shell_version, DEFAULT_INSTALL_DIR)
