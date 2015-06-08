@@ -11,15 +11,16 @@ Linux distributions.
 import subprocess
 import re
 import urllib2
-import json
 import os
 import sys
 import tempfile
 import zipfile
+from json import JSONDecoder,JSONEncoder
 
 # Some default values
 DEFAULT_BASE_URL = 'https://extensions.gnome.org'
-DEFAULT_QUERY = '/extension-query/n_per_page=-1'
+DEFAULT_QUERY = '/extension-query/?n_per_page=-1'
+DEFAULT_ITEM = 'extensions'
 
 DEFAULT_GLOBAL_INSTALL_DIR = '/usr/share/gnome-shell/extensions'
 
@@ -43,6 +44,58 @@ else:
 DEFAULT_CONFIG_FILE = os.path.join(DEFAULT_CONFIG_DIR,
         'gnome-extension-manager',
         'config.ini')
+
+class Catalog(JSONDecoder,JSONEncoder):
+
+    def __init__(self,indention=2):
+        self.catalog = {}
+        JSONDecoder.__init__(self)
+        JSONEncoder.__init__(self, indent=indention, separators=(',',':'))
+
+    def __str__(self):
+        return self.encode(self.catalog)
+
+    def update(self, url, query, item):
+        """
+        This method updates the catalog from the <url> with the <query>
+        """
+        try:
+            response = urllib2.urlopen('{0}/{1}'.format(url, query))
+        except urllib2.HTTPError, e:
+            print 'The server couldn\'t fulfill the request.'
+            print 'Error code: ', e.code
+            sys.exit(1)
+        except urllib2.URLError, e:
+            print 'We failed to reach a server.'
+            print 'Reason: ', e.reason
+            sys.exit(1)
+
+        info = response.read()
+        raw_catalog = self.decode(info)
+
+        # some sanity checks:
+        if raw_catalog['numpages'] != 1:
+            raise Exception("Can't download all extension!")
+        else:
+            print "downloaded {0} extensions".format(raw_catalog['total'])
+
+        # TODO: writing some info values
+        # self.catalog['date'] = now()
+        for extension in raw_catalog[item]:
+            self.catalog[extension['uuid']]=extension
+
+    def save(self, filename):
+        """
+        This method saves the catalog to a file with the path <filename>
+        """
+        if not os.path.exists(filename):
+            directory = os.path.dirname(filename)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+
+        with open(filename, 'w') as f:
+            f.write(str(self))
+
 
 def get_gnome_shell_version():
     """
@@ -70,90 +123,6 @@ def gnome_versions_stack(version):
     versions.reverse()
 
     return versions
-
-def gnome_query(baseurl, query, part=''):
-    """
-    This function downloads the catalog from the given url with the given
-    query
-    """
-    try:
-        response = urllib2.urlopen('{0}/{1}'.format(baseurl, query))
-    except urllib2.HTTPError, e:
-        print 'The server couldn\'t fulfill the request.'
-        print 'Error code: ', e.code
-        sys.exit(1)
-    except urllib2.URLError, e:
-        print 'We failed to reach a server.'
-        print 'Reason: ', e.reason
-        sys.exit(1)
-
-    info = response.read()
-    if part == '':
-        return json.loads(info)
-    else:
-        return json.loads(info)[part]
-def download_progress(bytes_so_far, chunk_size, total_size):
-    """
-    A simple function, which prints the percent of progress.
-    """
-
-    percent = float(bytes_so_far)/total_size
-    percent = round(percent*100, 2)
-    print "downloaded {0} % of {1} bytes".format(percent, total_size)
-
-def download_extension(url, dest_file, report_hook=None):
-    """
-    Download the given url to a file and reports the progress
-    """
-    try:
-        response = urllib2.urlopen(url)
-    except urllib2.HTTPError, e:
-        print 'The server couldn\'t fulfill the request.'
-        print 'Error code: ', e.code
-        sys.exit(1)
-    except urllib2.URLError, e:
-        print 'We failed to reach a server.'
-        print 'Reason: ', e.reason
-        sys.exit(1)
-    total_size = response.info().getheader('Content-Length')
-    total_size = int(total_size)
-    bytes_so_far = 0
-    chunk_size = 1024 * 8
-
-    while True:
-        chunk = response.read(chunk_size)
-        bytes_so_far += len(chunk)
-
-        if not chunk:
-            break
-
-        dest_file.write(chunk)
-
-        if report_hook:
-            report_hook(bytes_so_far, chunk_size, total_size)
-
-def update_catalog(catalog_file, url):
-    """
-    This function downloads the catalog and compares it with the saved one.
-    Then it should download the missing information and save the catalog
-    again.
-
-    dependencies: gnome_query, get_gnome_shell_version
-    """
-
-    if not os.path.exists(catalog_file):
-        directory = os.path.dirname(catalog_file)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-
-    print("getting extensions information...")
-    catalog = gnome_query(url,
-            'extension-query/?n_per_page=-1',
-            'extensions'
-            )
-
-    with open(catalog_file, 'w') as f:
-        json.dump({"extensions": catalog}, f)
 
 def find_in_catalog(catalog, extension, shell_version):
     """
@@ -298,6 +267,7 @@ def init_confparser(config_file):
                 'catalog.json'
                 )
             )
+    parser.set('Catalog', 'item', DEFAULT_ITEM)
 
     parser.add_section('Install')
     parser.set('Install', 'directory', DEFAULT_INSTALL_DIR)
@@ -311,11 +281,18 @@ if __name__ == '__main__':
 
     config = init_confparser(args.config_file)
 
-    for section_name in config.sections():
-        print '[{0}]'.format(section_name)
-        for name, value in config.items(section_name):
-            print '  %s = %s' % (name, value)
-        print
+    catalog = Catalog()
+
+    if args.command == 'update':
+        catalog.update(
+                url = config.get('Catalog','url'),
+                query = config.get('Catalog', 'query'),
+                item = config.get('Catalog', 'item'),
+                )
+        catalog.save(
+                filename = config.get('Catalog', 'directory')
+                )
+
 
     #catalog_file = os.path.join(DEFAULT_CACHE_DIR,
     #        'gnome-extension-manager',
