@@ -339,8 +339,6 @@ if __name__ == '__main__':
 
     config = init_confparser(args.config_file)
 
-    print config.get('Catalog', 'url')
-
     catalog = Catalog()
     catalogfile = os.path.join(
             config.get('Catalog', 'directory'),
@@ -353,7 +351,7 @@ if __name__ == '__main__':
                 url = config.get('Catalog','url'),
                 query = config.get('Catalog', 'query'),
                 item = config.get('Catalog', 'item'),
-                timeout = config.get('global', 'timeout'),
+                timeout = float(config.get('global', 'timeout')),
                 )
         catalog.save(
                 filename = catalogfile
