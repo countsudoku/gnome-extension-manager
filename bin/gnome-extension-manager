@@ -121,7 +121,7 @@ class Catalog(object):
             sys.exit(1)
 
         info = response.read()
-        raw_catalog = self.decode(info)
+        raw_catalog = self.decoder.decode(info)
 
         # some sanity checks:
         if raw_catalog['numpages'] != 1:
@@ -131,6 +131,7 @@ class Catalog(object):
 
         # writing some info values
         d = datetime.now()
+        timestamp = {}
         timestamp['year'] = d.year
         timestamp['month'] = d.month
         timestamp['day'] = d.day
@@ -139,10 +140,12 @@ class Catalog(object):
         timestamp['second'] = d.second
         self.catalog['timestamp'] = timestamp
 
+        gem = {}
         gem['version'] = VERSION
         self.catalog['gnome-extension-manager'] = gem
 
         # add the extension with uuid
+        extensions = {}
         for extension in raw_catalog[item]:
             extensions[extension['uuid']] = extension
 
