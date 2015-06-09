@@ -65,12 +65,23 @@ class Extension(object):
     def get_from_catalog(self, json_dict):
         pass
 
-    def download(self, url, query, path):
+    def download(self, url, query):
+        pass
+
+    def install(self, file, path):
         pass
 
     def chek_installed(self, uuid):
         pass
 
+    def remove(self, path):
+        pass
+
+    def activate(self, uuid):
+        pass
+
+    def deactivate(self, uuid):
+        pass
 
 class Catalog(object):
     def __init__(self, json_dict=None, indentation=2):
