@@ -24,6 +24,7 @@ VERSION = "0.0.1"
 DEFAULT_BASE_URL = 'https://extensions.gnome.org'
 DEFAULT_QUERY = '/extension-query/?n_per_page=-1'
 DEFAULT_ITEM = 'extensions'
+DEFAULT_TIMEOUT = 60
 
 DEFAULT_GLOBAL_INSTALL_DIR = '/usr/share/gnome-shell/extensions'
 
@@ -105,12 +106,12 @@ class Catalog(object):
         """
         print self
 
-    def update(self, url, query, item):
+    def update(self, url, query, item, timeout):
         """
         This method updates the catalog from the <url> with the <query>
         """
         try:
-            response = urllib2.urlopen('{0}/{1}'.format(url, query))
+            response = urllib2.urlopen('{0}/{1}'.format(url, query), timeout=timeout)
         except urllib2.HTTPError, e:
             print 'The server couldn\'t fulfill the request.'
             print 'Error code: ', e.code
@@ -313,14 +314,17 @@ def init_confparser(config_file):
 
     parser = ConfigParser.SafeConfigParser()
 
+    parser.add_section('global')
+    parser.set('global', 'timeout', str(DEFAULT_TIMEOUT))
+
     parser.add_section('Catalog')
-    parser.set('Catalog', 'url', DEFAULT_BASE_URL)
     parser.set('Catalog', 'query', DEFAULT_QUERY)
     parser.set('Catalog', 'directory', os.path.join(DEFAULT_CACHE_DIR,
                 'gnome-extension-manager',
                 )
             )
     parser.set('Catalog', 'item', DEFAULT_ITEM)
+    parser.set('Catalog', 'url', DEFAULT_BASE_URL)
 
     parser.add_section('Install')
     parser.set('Install', 'directory', DEFAULT_INSTALL_DIR)
@@ -335,6 +339,8 @@ if __name__ == '__main__':
 
     config = init_confparser(args.config_file)
 
+    print config.get('Catalog', 'url')
+
     catalog = Catalog()
     catalogfile = os.path.join(
             config.get('Catalog', 'directory'),
@@ -347,6 +353,7 @@ if __name__ == '__main__':
                 url = config.get('Catalog','url'),
                 query = config.get('Catalog', 'query'),
                 item = config.get('Catalog', 'item'),
+                timeout = config.get('global', 'timeout'),
                 )
         catalog.save(
                 filename = catalogfile
