@@ -48,6 +48,29 @@ DEFAULT_CONFIG_FILE = os.path.join(DEFAULT_CONFIG_DIR,
         'gnome-extension-manager',
         'config.ini')
 
+class Extension(object):
+    """
+    This class does the extension parsing and installing
+    """
+    def __init__(self, *path):
+        pass
+
+    def __str__(self):
+        pass
+
+    def __cmp__(self):
+        pass
+
+    def get_from_catalog(self, json_dict):
+        pass
+
+    def download(self, url, query, path):
+        pass
+
+    def chek_installed(self, uuid):
+        pass
+
+
 class Catalog(object):
     def __init__(self, json_dict=None, indentation=2):
         self.catalog = json_dict or {}
