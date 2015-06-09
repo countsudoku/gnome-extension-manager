@@ -16,8 +16,11 @@ import sys
 import tempfile
 import zipfile
 from json import JSONDecoder,JSONEncoder
+from datetime import datetime
 
 # Some default values
+VERSION = "0.0.1"
+
 DEFAULT_BASE_URL = 'https://extensions.gnome.org'
 DEFAULT_QUERY = '/extension-query/?n_per_page=-1'
 DEFAULT_ITEM = 'extensions'
@@ -45,15 +48,39 @@ DEFAULT_CONFIG_FILE = os.path.join(DEFAULT_CONFIG_DIR,
         'gnome-extension-manager',
         'config.ini')
 
-class Catalog(JSONDecoder,JSONEncoder):
-
-    def __init__(self,indention=2):
-        self.catalog = {}
-        JSONDecoder.__init__(self)
-        JSONEncoder.__init__(self, indent=indention, separators=(',',':'))
+class Catalog(object):
+    def __init__(self, json_dict=None, indentation=2):
+        self.catalog = json_dict or {}
+        self.encoder = JSONEncoder(indent=indentation, separators=(',',':'))
+        self.decoder = JSONDecoder()
 
     def __str__(self):
-        return self.encode(self.catalog)
+        return self.encoder.encode(self.catalog)
+
+    def load(self, filename):
+        """
+        This method loads the catalog from file with the path <filename>
+        """
+        with open(filename, 'r') as f:
+            self.catalog = self.decoder.decode(f.read())
+
+    def save(self, filename):
+        """
+        This method saves the catalog to a file with the path <filename>
+        """
+        if not os.path.exists(filename):
+            directory = os.path.dirname(filename)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+
+        with open(filename, 'w') as f:
+            f.write(str(self))
+
+    def dump(self):
+        """
+        dums the catalog for debugging purpose
+        """
+        print self
 
     def update(self, url, query, item):
         """
@@ -79,23 +106,24 @@ class Catalog(JSONDecoder,JSONEncoder):
         else:
             print "downloaded {0} extensions".format(raw_catalog['total'])
 
-        # TODO: writing some info values
-        # self.catalog['date'] = now()
+        # writing some info values
+        d = datetime.now()
+        timestamp['year'] = d.year
+        timestamp['month'] = d.month
+        timestamp['day'] = d.day
+        timestamp['hour'] = d.hour
+        timestamp['minute'] = d.minute
+        timestamp['second'] = d.second
+        self.catalog['timestamp'] = timestamp
+
+        gem['version'] = VERSION
+        self.catalog['gnome-extension-manager'] = gem
+
+        # add the extension with uuid
         for extension in raw_catalog[item]:
-            self.catalog[extension['uuid']]=extension
+            extensions[extension['uuid']] = extension
 
-    def save(self, filename):
-        """
-        This method saves the catalog to a file with the path <filename>
-        """
-        if not os.path.exists(filename):
-            directory = os.path.dirname(filename)
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-
-        with open(filename, 'w') as f:
-            f.write(str(self))
-
+        self.catalog['extensions'] = extensions
 
 def get_gnome_shell_version():
     """
@@ -108,8 +136,8 @@ def get_gnome_shell_version():
 
 def gnome_versions_stack(version):
     """
-    Returns a stack (list) of versions; with the most specific at top and the
-    unspecific at bottom.
+    Helper method, which Returns a stack (list) of versions; with the most
+    specific at top and the unspecific at bottom.
 
     So if you version is 3.15.1 the list is [ 3, 3.15, 3.15.1 ]
     """
@@ -264,7 +292,6 @@ def init_confparser(config_file):
     parser.set('Catalog', 'query', DEFAULT_QUERY)
     parser.set('Catalog', 'directory', os.path.join(DEFAULT_CACHE_DIR,
                 'gnome-extension-manager',
-                'catalog.json'
                 )
             )
     parser.set('Catalog', 'item', DEFAULT_ITEM)
@@ -277,11 +304,17 @@ def init_confparser(config_file):
     return parser
 
 if __name__ == '__main__':
+
     args, extra_args = init_argparser().parse_known_args()
 
     config = init_confparser(args.config_file)
 
     catalog = Catalog()
+    catalogfile = os.path.join(
+            config.get('Catalog', 'directory'),
+            'catalog.json',
+            )
+
 
     if args.command == 'update':
         catalog.update(
@@ -290,18 +323,11 @@ if __name__ == '__main__':
                 item = config.get('Catalog', 'item'),
                 )
         catalog.save(
-                filename = config.get('Catalog', 'directory')
+                filename = catalogfile
                 )
 
 
-    #catalog_file = os.path.join(DEFAULT_CACHE_DIR,
-    #        'gnome-extension-manager',
-    #        'catalog.json')
-
     #shell_version = get_gnome_shell_version()
 
-    #if args.command == 'update':
-    #    #update_catalog(catalog_file, DEFAULT_BASE_URL)
-    #    print args.config_file
     ##elif args.command == 'install':
     ##    install_all_extensions(args.extensions, catalog_file, DEFAULT_BASE_URL, shell_version, DEFAULT_INSTALL_DIR)
