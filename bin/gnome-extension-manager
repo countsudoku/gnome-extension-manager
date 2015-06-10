@@ -117,6 +117,21 @@ class Catalog(object):
         """
         print self
 
+    def add_info(self):
+        d = datetime.now()
+        timestamp = {}
+        timestamp['year'] = d.year
+        timestamp['month'] = d.month
+        timestamp['day'] = d.day
+        timestamp['hour'] = d.hour
+        timestamp['minute'] = d.minute
+        timestamp['second'] = d.second
+        self.catalog['timestamp'] = timestamp
+
+        gem = {}
+        gem['version'] = VERSION
+        self.catalog['gnome-extension-manager'] = gem
+
     def update(self, url, query, item, timeout):
         """
         This method updates the catalog from the <url> with the <query>
@@ -142,19 +157,7 @@ class Catalog(object):
             print "downloaded {0} extensions".format(raw_catalog['total'])
 
         # writing some info values
-        d = datetime.now()
-        timestamp = {}
-        timestamp['year'] = d.year
-        timestamp['month'] = d.month
-        timestamp['day'] = d.day
-        timestamp['hour'] = d.hour
-        timestamp['minute'] = d.minute
-        timestamp['second'] = d.second
-        self.catalog['timestamp'] = timestamp
-
-        gem = {}
-        gem['version'] = VERSION
-        self.catalog['gnome-extension-manager'] = gem
+        self.add_info()
 
         # add the extension with uuid
         extensions = {}
