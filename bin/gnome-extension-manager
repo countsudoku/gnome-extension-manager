@@ -62,7 +62,7 @@ class Extension(object):
     def __cmp__(self):
         pass
 
-    def get_from_catalog(self, json_dict):
+    def get_from_catalog(self, json_dict, shell_version):
         pass
 
     def download(self, url, query):
@@ -162,6 +162,21 @@ class Catalog(object):
             extensions[extension['uuid']] = extension
 
         self.catalog['extensions'] = extensions
+
+    def get_extension(self, shell_version, uuid):
+        extensions = self.catalog['extensions']
+        if uuid not in extensions:
+            raise Exception("Can't find extension in catalog")
+        e = Extension()
+        return e.get_from_catalog(extensions[uuid], shell_version)
+
+    def build_from_paths(self, *paths):
+        dirs = []
+        for path in paths:
+            dirs += map(lambda x: "{0}/{1}".format(path,x), os.listdir(path))
+        for directory in dirs:
+            with open("{0}/metadata.json".format(directory), 'r') as f:
+                print f.read()
 
 def get_gnome_shell_version():
     """
@@ -350,26 +365,25 @@ if __name__ == '__main__':
 
     config = init_confparser(args.config_file)
 
-    catalog = Catalog()
     catalogfile = os.path.join(
             config.get('Catalog', 'directory'),
             'catalog.json',
             )
-
+    catalog = Catalog()
 
     if args.command == 'update':
         catalog.update(
-                url = config.get('Catalog','url'),
-                query = config.get('Catalog', 'query'),
-                item = config.get('Catalog', 'item'),
-                timeout = float(config.get('global', 'timeout')),
+                url=config.get('Catalog', 'url'),
+                query=config.get('Catalog', 'query'),
+                item=config.get('Catalog', 'item'),
+                timeout=float(config.get('global', 'timeout')),
                 )
-        catalog.save(
-                filename = catalogfile
-                )
+        catalog.save(filename=catalogfile)
+    elif args.command == 'install':
+        shell_version = get_gnome_shell_version()
 
+        catalog.load(filename=catalogfile)
+        #extensions_to_install = catalog.get_extension(shell_version, set(args.extensions))
 
-    #shell_version = get_gnome_shell_version()
-
-    ##elif args.command == 'install':
-    ##    install_all_extensions(args.extensions, catalog_file, DEFAULT_BASE_URL, shell_version, DEFAULT_INSTALL_DIR)
+        installed_extensions = Catalog()
+        installed_extensions.build_from_paths(DEFAULT_GLOBAL_INSTALL_DIR, config.get('Install', 'directory'))
