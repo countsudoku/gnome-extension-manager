@@ -419,16 +419,19 @@ if __name__ == '__main__':
         for extension in set(args.extensions):
             install = False
             e = catalog.get_extension(
-                    uuid = extension,
-                    shell_version = gnome_shell_version,
+                    uuid=extension,
+                    shell_version=gnome_shell_version,
                     )
-            print e
             try:
                 i = installed_extensions.get_extension(
-                    uuid = extension,
-                    shell_version = gnome_shell_version,
+                    uuid=extension,
+                    shell_version=gnome_shell_version,
                     )
             except NotInCatalog as e:
+                print "not installed"
                 install = True
-            print i
-
+            else:
+                if e > i:
+                    install = True
+                else:
+                    install = False
