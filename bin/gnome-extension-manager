@@ -67,6 +67,7 @@ class Extension(object):
         self.description = ""
         self.install_pk = None
         self.version = None
+        self.url = ""
 
     def __str__(self):
         if self.creator != '':
@@ -120,24 +121,45 @@ class Extension(object):
             self.install_pk = json_dict['shell_version_map'][test_version]['pk']
             self.version = json_dict['shell_version_map'][test_version][ 'version']
 
+    def get_download_url(self, url):
+        """
+        Helper function to get the correct url, to download the extension.
+        """
+        dl_url = "{0}/download-extension/{1}.shell-extension.zip?version_tag={2}"
+        return dl_url.format(url, self.uuid, self.install_pk)
 
-    def download(self, url, query):
+    def download(self, url):
         """
         Download the given extension
         """
-        pass
+        print "downloading {0}".format(self.uuid)
+        try:
+            response = urllib2.urlopen(url)
+        except urllib2.HTTPError, e:
+            print 'The server couldn\'t fulfill the request.'
+            print 'Error code: ', e.code
+            sys.exit(1)
+        except urllib2.URLError, e:
+            print 'We failed to reach a server.'
+            print 'Reason: ', e.reason
+            sys.exit(1)
 
-    def install(self, file_handle, path):
+        self.zfile = tempfile.SpooledTemporaryFile()
+        self.zfile.write(response.read())
+
+    def install(self, path):
         """
         Install the extension in file to the path
         """
-        pass
+        print "installing {0}".format(self.uuid)
+        install_directory = os.path.join(path, self.uuid)
+        if not os.path.exists(install_directory):
+            os.makedirs(install_directory)
 
-    def chek_installed(self, uuid):
-        """
-        Check if the Extension is installed
-        """
-        pass
+        with zipfile.ZipFile(self.zfile, 'r') as z:
+            z.extractall(install_directory)
+        self.zfile.close()
+        del self.zfile
 
     def remove(self, path):
         """
@@ -404,6 +426,7 @@ if __name__ == '__main__':
                 )
         catalog.save(filename=catalogfile)
     elif args.command == 'install':
+        install_dir = config.get('Install', 'directory')
         shell_version = get_gnome_shell_version()
 
         catalog.load(filename=catalogfile)
@@ -411,7 +434,7 @@ if __name__ == '__main__':
         installed_extensions = Catalog()
         installed_extensions.build_from_paths(
                 DEFAULT_GLOBAL_INSTALL_DIR,
-                config.get('Install', 'directory')
+                install_dir
                 )
 
         gnome_shell_version = get_gnome_shell_version()
@@ -427,11 +450,19 @@ if __name__ == '__main__':
                     uuid=extension,
                     shell_version=gnome_shell_version,
                     )
-            except NotInCatalog as e:
-                print "not installed"
+            except NotInCatalog :
                 install = True
             else:
                 if e > i:
                     install = True
                 else:
-                    install = False
+                    print "{0} is allready installed and no update available".format(e.uuid)
+
+            if install:
+                dl_url = e.get_download_url(
+                        config.get('Catalog', 'url')
+                        )
+                e.download(dl_url)
+                e.install(install_dir)
+
+# vim:fdm=indent:ts=4:sw=4:sts=4:ai:sta:et
