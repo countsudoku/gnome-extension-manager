@@ -212,10 +212,17 @@ class Catalog(object):
         """
         dirs = []
         for path in paths:
-            dirs += map(lambda x: "{0}/{1}".format(path,x), os.listdir(path))
+            dirs += ["{0}/{1}".format(path,x) for x in os.listdir(path)]
+
+        extensions = {}
         for directory in dirs:
             with open("{0}/metadata.json".format(directory), 'r') as f:
-                print f.read()
+                extension = self.decoder.decode(f.read())
+                extensions[extension['uuid']] = extension
+
+        self.add_info()
+
+        self.catalog['extensions'] = extensions
 
 def get_gnome_shell_version():
     """
@@ -432,3 +439,4 @@ if __name__ == '__main__':
                 DEFAULT_GLOBAL_INSTALL_DIR,
                 config.get('Install', 'directory')
                 )
+        installed_extensions.dump()
