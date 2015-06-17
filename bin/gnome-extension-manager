@@ -53,20 +53,35 @@ class Extension(object):
     """
     This class does the extension parsing and installing
     """
-    def __init__(self, *path):
-        pass
+    def __init__(self):
+        self.install_pk = None
+        self.version = None
+        self.name = ""
+        self.creator = ""
+        self.description = ""
+        self.uuid = ""
 
     def __str__(self):
         pass
 
-    def __cmp__(self):
-        pass
+    def __cmp__(self, other):
+        if self.version > other.version:
+            return +1
+        elif self.version < other.version:
+            return -1
+        else:
+            return 0
 
     def get_from_catalog(self, json_dict, shell_version):
         """
         Parse object from catalog
         """
-        pass
+        self.name = json_dict['name']
+        self.creator = json_dict['creator']
+        self.description = json_dict['description']
+        self.uuid = json_dict['uuid']
+        print Extension.version_stack(shell_version)
+
 
     def download(self, url, query):
         """
@@ -103,6 +118,25 @@ class Extension(object):
         Deactivate an extension in gnome-shell
         """
         pass
+
+    @staticmethod
+    def version_stack(version):
+        """
+        Helper method, which Returns a stack (list) of versions; with the most
+        specific at top and the unspecific at bottom.
+
+        So if you version is 3.15.1 the list is [ 3, 3.15, 3.15.1 ]
+        """
+
+        split_version = version.split('.')
+        versions = []
+        while split_version:
+            versions.append('.'.join(split_version))
+            del split_version[-1]
+
+        versions.reverse()
+
+        return versions
 
 class Catalog(object):
     """
@@ -202,9 +236,13 @@ class Catalog(object):
         """
         extensions = self.catalog['extensions']
         if uuid not in extensions:
-            raise Exception("Can't find extension in catalog")
-        e = Extension()
-        return e.get_from_catalog(extensions[uuid], shell_version)
+            raise Exception(
+                    "Can't find extension {0} in catalog".format(uuid)
+                    )
+        else:
+            e = Extension()
+            e.get_from_catalog(extensions[uuid], shell_version)
+            return e
 
     def build_from_paths(self, *paths):
         """
@@ -232,24 +270,6 @@ def get_gnome_shell_version():
             subprocess.check_output(['gnome-shell', '--version'])
             )
     return gnome_shell_version.rstrip()
-
-def gnome_versions_stack(version):
-    """
-    Helper method, which Returns a stack (list) of versions; with the most
-    specific at top and the unspecific at bottom.
-
-    So if you version is 3.15.1 the list is [ 3, 3.15, 3.15.1 ]
-    """
-
-    split_version = version.split('.')
-    versions = []
-    while split_version:
-        versions.append('.'.join(split_version))
-        del split_version[-1]
-
-    versions.reverse()
-
-    return versions
 
 def find_in_catalog(catalog, extension, shell_version):
     """
@@ -391,14 +411,15 @@ if __name__ == '__main__':
         shell_version = get_gnome_shell_version()
 
         catalog.load(filename=catalogfile)
-        #extensions_to_install = catalog.get_extension(
-        #        shell_version,
-        #        set(args.extensions)
-        #        )
 
         installed_extensions = Catalog()
         installed_extensions.build_from_paths(
                 DEFAULT_GLOBAL_INSTALL_DIR,
                 config.get('Install', 'directory')
                 )
-        installed_extensions.dump()
+
+        for extension in set(args.extensions):
+            catalog.get_extension(
+                    uuid = extension,
+                    shell_version = get_gnome_shell_version()
+                    )
