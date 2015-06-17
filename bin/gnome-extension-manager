@@ -54,17 +54,24 @@ class Extension(object):
     This class does the extension parsing and installing
     """
     def __init__(self):
-        self.install_pk = None
-        self.version = None
+        self.uuid = ""
         self.name = ""
         self.creator = ""
         self.description = ""
-        self.uuid = ""
+        self.install_pk = None
+        self.version = None
 
     def __str__(self):
-        pass
+        main = "{0} by {1}".format(self.name, self.creator)
+        uuid = "UUID: {0}".format(self.uuid)
+        desc = "{0}".format(self.description)
+        vers = "Version: {0} ({1})".format(self.version, self.install_pk)
+
+        return "\n{0}\n\n{1}\n{2}\n{3}".format(main, uuid, desc, vers)
 
     def __cmp__(self, other):
+        if self.uuid != other.uuid:
+            raise Exception("You don't compare the same Extension!")
         if self.version > other.version:
             return +1
         elif self.version < other.version:
@@ -80,7 +87,19 @@ class Extension(object):
         self.creator = json_dict['creator']
         self.description = json_dict['description']
         self.uuid = json_dict['uuid']
-        print Extension.version_stack(shell_version)
+
+        stacked_versions = Extension.version_stack(shell_version)
+        test_version = stacked_versions.pop()
+
+        while test_version not in json_dict['shell_version_map']:
+            if not stacked_versions:
+                raise Exception(
+                   "Can't find extension {0} for your version of GNOME Shell".
+                        format(self.uuid))
+            else:
+                test_version = stacked_versions.pop()
+        self.install_pk = json_dict['shell_version_map'][test_version]['pk']
+        self.version = json_dict['shell_version_map'][test_version][ 'version']
 
 
     def download(self, url, query):
@@ -271,46 +290,6 @@ def get_gnome_shell_version():
             )
     return gnome_shell_version.rstrip()
 
-def find_in_catalog(catalog, extension, shell_version):
-    """
-    Find the Extension in the catalog and return some usefull information
-    """
-    if re.match(r'^\d+$', extension):
-        ext_type = "pk"
-        extension = int(extension)
-    elif re.match(r'^.*@.*', extension):
-        ext_type = "uuid"
-    else:
-        raise Exception("{0}is no valid Extension UUID nor a valid Package number!".format(extension))
-
-    found = False
-    for i in range(len(catalog)):
-        if catalog[i][ext_type] == extension:
-            found = True
-            catalog_num = i
-            break
-
-    if not found:
-        raise Exception("Can't find extension {0} in the catalog".format(extension))
-
-    shell_versions_stack = gnome_versions_stack(shell_version)
-    test_version = shell_versions_stack.pop()
-
-    while test_version not in catalog[catalog_num]['shell_version_map']:
-        if not shell_versions_stack:
-            raise Exception("Can't find extension {0} for your version of GNOME Shell".format(extension))
-        else:
-            test_version = shell_versions_stack.pop()
-
-    # TODO: This should be an object
-    return {"install_pk" : catalog[catalog_num]["shell_version_map"][test_version]["pk"],
-            "version": catalog[catalog_num]["shell_version_map"][test_version]["version"],
-            "name": catalog[catalog_num]["name"],
-            "creator": catalog[catalog_num]["creator"],
-            "description": catalog[catalog_num]["description"],
-            "uuid": catalog[catalog_num]["uuid"],
-            }
-
 def init_argparser():
     """
     This function does the whole parsing oft command line arguments
@@ -418,8 +397,17 @@ if __name__ == '__main__':
                 config.get('Install', 'directory')
                 )
 
+        gnome_shell_version = get_gnome_shell_version()
+
         for extension in set(args.extensions):
-            catalog.get_extension(
+            e = catalog.get_extension(
                     uuid = extension,
-                    shell_version = get_gnome_shell_version()
+                    shell_version = gnome_shell_version,
                     )
+            print e
+            i = installed_extensions.get_extension(
+                    uuid = extension,
+                    shell_version = gnome_shell_version,
+                    )
+            print i
+
