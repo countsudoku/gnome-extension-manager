@@ -8,15 +8,15 @@ commands should be similar than the ones are used for apt-get in Debian like
 Linux distributions.
 """
 
-import subprocess
-import re
-import urllib2
+from datetime import datetime
+from json import JSONDecoder, JSONEncoder
 import os
+import re
+import subprocess
 import sys
 import tempfile
+import urllib2
 import zipfile
-from json import JSONDecoder,JSONEncoder
-from datetime import datetime
 
 # Some default values
 VERSION = "0.0.1"
@@ -63,30 +63,54 @@ class Extension(object):
         pass
 
     def get_from_catalog(self, json_dict, shell_version):
+        """
+        Parse object from catalog
+        """
         pass
 
     def download(self, url, query):
+        """
+        Download the given extension
+        """
         pass
 
-    def install(self, file, path):
+    def install(self, file_handle, path):
+        """
+        Install the extension in file to the path
+        """
         pass
 
     def chek_installed(self, uuid):
+        """
+        Check if the Extension is installed
+        """
         pass
 
     def remove(self, path):
+        """
+        Deinstall the given extension
+        """
         pass
 
     def activate(self, uuid):
+        """
+        Activate an extension in gnome-shell
+        """
         pass
 
     def deactivate(self, uuid):
+        """
+        Deactivate an extension in gnome-shell
+        """
         pass
 
 class Catalog(object):
+    """
+    A JSON dict which handles the catalog from extensions.gnome.org
+    """
     def __init__(self, json_dict=None, indentation=2):
         self.catalog = json_dict or {}
-        self.encoder = JSONEncoder(indent=indentation, separators=(',',':'))
+        self.encoder = JSONEncoder(indent=indentation, separators=(',', ':'))
         self.decoder = JSONDecoder()
 
     def __str__(self):
@@ -118,6 +142,9 @@ class Catalog(object):
         print self
 
     def add_info(self):
+        """
+        Adding some basic infos to the catalog, for later use
+        """
         d = datetime.now()
         timestamp = {}
         timestamp['year'] = d.year
@@ -137,7 +164,10 @@ class Catalog(object):
         This method updates the catalog from the <url> with the <query>
         """
         try:
-            response = urllib2.urlopen('{0}/{1}'.format(url, query), timeout=timeout)
+            response = urllib2.urlopen(
+                    '{0}/{1}'.format(url, query),
+                    timeout=timeout
+                    )
         except urllib2.HTTPError, e:
             print 'The server couldn\'t fulfill the request.'
             print 'Error code: ', e.code
@@ -167,6 +197,9 @@ class Catalog(object):
         self.catalog['extensions'] = extensions
 
     def get_extension(self, shell_version, uuid):
+        """
+        Get a single Extension object from the catalog
+        """
         extensions = self.catalog['extensions']
         if uuid not in extensions:
             raise Exception("Can't find extension in catalog")
@@ -174,6 +207,9 @@ class Catalog(object):
         return e.get_from_catalog(extensions[uuid], shell_version)
 
     def build_from_paths(self, *paths):
+        """
+        Build a Catalog from the installed pathes
+        """
         dirs = []
         for path in paths:
             dirs += map(lambda x: "{0}/{1}".format(path,x), os.listdir(path))
@@ -386,7 +422,13 @@ if __name__ == '__main__':
         shell_version = get_gnome_shell_version()
 
         catalog.load(filename=catalogfile)
-        #extensions_to_install = catalog.get_extension(shell_version, set(args.extensions))
+        #extensions_to_install = catalog.get_extension(
+        #        shell_version,
+        #        set(args.extensions)
+        #        )
 
         installed_extensions = Catalog()
-        installed_extensions.build_from_paths(DEFAULT_GLOBAL_INSTALL_DIR, config.get('Install', 'directory'))
+        installed_extensions.build_from_paths(
+                DEFAULT_GLOBAL_INSTALL_DIR,
+                config.get('Install', 'directory')
+                )
