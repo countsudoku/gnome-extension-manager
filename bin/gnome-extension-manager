@@ -49,6 +49,13 @@ DEFAULT_CONFIG_FILE = os.path.join(DEFAULT_CONFIG_DIR,
         'gnome-extension-manager',
         'config.ini')
 
+class NotInCatalog(Exception):
+    def __init__(self, uuid):
+        self.uuid = uuid
+
+    def __str__(self):
+        return "Can't find extension {0} in catalog".format(self.uuid)
+
 class Extension(object):
     """
     This class does the extension parsing and installing
@@ -62,10 +69,16 @@ class Extension(object):
         self.version = None
 
     def __str__(self):
-        main = "{0} by {1}".format(self.name, self.creator)
+        if self.creator != '':
+            main = "{0} by {1}".format(self.name, self.creator)
+        else:
+            main = self.name
         uuid = "UUID: {0}".format(self.uuid)
         desc = "{0}".format(self.description)
-        vers = "Version: {0} ({1})".format(self.version, self.install_pk)
+        if self.install_pk:
+            vers = "Version: {0} ({1})".format(self.version, self.install_pk)
+        else:
+            vers = "Version: {0}".format(self.version)
 
         return "\n{0}\n\n{1}\n{2}\n{3}".format(main, uuid, desc, vers)
 
@@ -84,22 +97,28 @@ class Extension(object):
         Parse object from catalog
         """
         self.name = json_dict['name']
-        self.creator = json_dict['creator']
+        try:
+            self.creator = json_dict['creator']
+        except KeyError:
+            pass
         self.description = json_dict['description']
         self.uuid = json_dict['uuid']
 
         stacked_versions = Extension.version_stack(shell_version)
         test_version = stacked_versions.pop()
 
-        while test_version not in json_dict['shell_version_map']:
-            if not stacked_versions:
-                raise Exception(
-                   "Can't find extension {0} for your version of GNOME Shell".
-                        format(self.uuid))
-            else:
-                test_version = stacked_versions.pop()
-        self.install_pk = json_dict['shell_version_map'][test_version]['pk']
-        self.version = json_dict['shell_version_map'][test_version][ 'version']
+        if 'version' in json_dict:
+            self.version = json_dict['version']
+        else:
+            while test_version not in json_dict['shell_version_map']:
+                if not stacked_versions:
+                    raise Exception(
+                       "Can't find extension {0} for your version of GNOME Shell".
+                            format(self.uuid))
+                else:
+                    test_version = stacked_versions.pop()
+            self.install_pk = json_dict['shell_version_map'][test_version]['pk']
+            self.version = json_dict['shell_version_map'][test_version][ 'version']
 
 
     def download(self, url, query):
@@ -255,9 +274,7 @@ class Catalog(object):
         """
         extensions = self.catalog['extensions']
         if uuid not in extensions:
-            raise Exception(
-                    "Can't find extension {0} in catalog".format(uuid)
-                    )
+            raise NotInCatalog(uuid)
         else:
             e = Extension()
             e.get_from_catalog(extensions[uuid], shell_version)
@@ -400,14 +417,18 @@ if __name__ == '__main__':
         gnome_shell_version = get_gnome_shell_version()
 
         for extension in set(args.extensions):
+            install = False
             e = catalog.get_extension(
                     uuid = extension,
                     shell_version = gnome_shell_version,
                     )
             print e
-            i = installed_extensions.get_extension(
+            try:
+                i = installed_extensions.get_extension(
                     uuid = extension,
                     shell_version = gnome_shell_version,
                     )
+            except NotInCatalog as e:
+                install = True
             print i
 
