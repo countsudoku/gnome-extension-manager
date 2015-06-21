@@ -389,8 +389,12 @@ def activate_extensions(extensions, installed_extensions, shell_version):
                 .format(extension))
             sys.exit(1)
         else:
-            extension_list.append(extension)
-
+            if extension in extension_list:
+                print("Extension {0} is activated.".format(extension))
+            else:
+                extension_list.append(extension)
+    extension_list = set(extension_list)
+    extension_list = list(extension_list)
     shell_settings.set_value(
             'enabled-extensions',
             GLib.Variant.new_strv(extension_list),
