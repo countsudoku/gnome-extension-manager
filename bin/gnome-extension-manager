@@ -442,7 +442,7 @@ def init_confparser(config_file):
 
     parser.add_section('Install')
     parser.set('Install', 'directory', DEFAULT_INSTALL_DIR)
-    parser.set('Install', 'activate', True)
+    parser.set('Install', 'activate', "true")
 
     parser.read(config_file)
 
@@ -494,7 +494,7 @@ if __name__ == '__main__':
                 installed_extensions=installed_extensions,
                 shell_version=gnome_shell_version,
                 )
-        if config.get('Install', 'activate'):
+        if config.getboolean('Install', 'activate'):
             activate(
                     extensions=args.extensions,
                     installed_extensions=installed_extensions,
