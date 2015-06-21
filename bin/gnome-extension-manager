@@ -168,18 +168,6 @@ class Extension(object):
         """
         pass
 
-    def activate(self, uuid):
-        """
-        Activate an extension in gnome-shell
-        """
-        pass
-
-    def deactivate(self, uuid):
-        """
-        Deactivate an extension in gnome-shell
-        """
-        pass
-
     @staticmethod
     def version_stack(version):
         """
@@ -379,7 +367,7 @@ def activate_extensions(extensions, installed_extensions, shell_version):
 
     for extension in set(extensions):
         try:
-            activate_candidate = installed_extensions.get_extension(
+            installed_extensions.get_extension(
                     uuid=extension,
                     shell_version=shell_version,
                     )
