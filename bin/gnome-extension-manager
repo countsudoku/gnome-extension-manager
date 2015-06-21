@@ -503,5 +503,11 @@ if __name__ == '__main__':
                     installed_extensions=installed_extensions,
                     )
 
+    elif args.command == 'activate':
+        activate(
+                extensions=args.extensions,
+                installed_extensions=installed_extensions,
+                )
+
 
 # vim:fdm=indent:ts=4:sw=4:sts=4:ai:sta:et
