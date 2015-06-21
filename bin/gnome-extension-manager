@@ -9,6 +9,7 @@ Linux distributions.
 """
 
 from datetime import datetime
+from gi.repository import Gio, GLib
 from json import JSONDecoder, JSONEncoder
 import os
 import re
@@ -368,11 +369,33 @@ def install_extensions(extensions, catalog, installed_extensions, shell_version)
             ext.download(dl_url)
             ext.install(install_dir)
 
-def activate(extensions, installed_extensions):
+def activate_extensions(extensions, installed_extensions, shell_version):
     """
     Activates the extensions given in extensions
     """
-    pass
+    shell_settings = Gio.Settings("org.gnome.shell")
+    enabled_extensions = shell_settings.get_value("enabled-extensions")
+    extension_list = enabled_extensions.unpack()
+
+    for extension in set(extensions):
+        try:
+            activate_candidate = installed_extensions.get_extension(
+                    uuid=extension,
+                    shell_version=shell_version,
+                    )
+        except NotInCatalog:
+            print("Extension {0} not in Installed, " \
+               "Please installe it with the 'install' command first!" \
+                .format(extension))
+            sys.exit(1)
+        else:
+            extension_list.append(extension)
+
+    shell_settings.set_value(
+            'enabled-extensions',
+            GLib.Variant.new_strv(extension_list),
+            )
+
 
 def init_argparser():
     """
@@ -461,6 +484,7 @@ if __name__ == '__main__':
 
     # some often used variables # {{{
     install_dir = config.get('Install', 'directory')
+    gnome_shell_version = get_gnome_shell_version()
     # }}}
 
     # creating the catalog object
@@ -489,7 +513,6 @@ if __name__ == '__main__':
         catalog.save(filename=catalogfile)
 
     elif args.command == 'install':
-        gnome_shell_version = get_gnome_shell_version()
         catalog.load(filename=catalogfile)
         install_extensions(
                 extensions=args.extensions,
@@ -498,15 +521,17 @@ if __name__ == '__main__':
                 shell_version=gnome_shell_version,
                 )
         if config.getboolean('Install', 'activate'):
-            activate(
+            activate_extensions(
                     extensions=args.extensions,
                     installed_extensions=installed_extensions,
+                    shell_version=gnome_shell_version,
                     )
 
     elif args.command == 'activate':
-        activate(
+        activate_extensions(
                 extensions=args.extensions,
                 installed_extensions=installed_extensions,
+                shell_version=gnome_shell_version,
                 )
 
 
