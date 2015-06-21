@@ -313,10 +313,22 @@ def get_gnome_shell_version():
     """
     This function is to get the installed gnome-shell version
     """
-    gnome_shell_version = re.sub(r'^\s*GNOME\s*Shell\s*((\d+\.)+\d+).*$', r'\1',
-            subprocess.check_output(['gnome-shell', '--version'])
+    GNOME_SHELL_IFACE = 'org.gnome.Shell'
+    GNOME_SHELL_PATH  = '/org/gnome/Shell'
+
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    proxy = Gio.DBusProxy.new_sync(
+            bus,
+            Gio.DBusProxyFlags.NONE,
+            None,
+            GNOME_SHELL_IFACE,
+            GNOME_SHELL_PATH,
+            'org.freedesktop.DBus.Properties',
+            None
             )
-    return gnome_shell_version.rstrip()
+
+    path = GLib.Variant('(ss)' ,('org.gnome.Shell.Extensions', 'ShellVersion'))
+    return proxy.Get('(ss)' ,'org.gnome.Shell.Extensions', 'ShellVersion')
 
 def install_extensions(extensions, catalog, installed_extensions, shell_version):
     """
