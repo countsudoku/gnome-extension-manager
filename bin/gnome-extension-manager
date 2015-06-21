@@ -407,15 +407,31 @@ def init_confparser(config_file):
 
 if __name__ == '__main__':
 
+    # Parsing the command line arguments
     args, extra_args = init_argparser().parse_known_args()
 
+    # getting the values from the config file or default values
     config = init_confparser(args.config_file)
 
-    catalogfile = os.path.join(
-            config.get('Catalog', 'directory'),
-            'catalog.json',
-            )
-    catalog = Catalog()
+    # some often used variables # {{{
+    install_dir = config.get('Install', 'directory')
+    # }}}
+
+    # creating the catalog object
+    if args.command in ['update', 'install']:
+        catalogfile = os.path.join(
+                config.get('Catalog', 'directory'),
+                'catalog.json',
+                )
+        catalog = Catalog()
+
+    # creating the installed extensions catalog object
+    if args.command in ['install', 'activate']:
+        installed_extensions = Catalog()
+        installed_extensions.build_from_paths(
+                DEFAULT_GLOBAL_INSTALL_DIR,
+                install_dir
+                )
 
     if args.command == 'update':
         catalog.update(
@@ -425,19 +441,11 @@ if __name__ == '__main__':
                 timeout=float(config.get('global', 'timeout')),
                 )
         catalog.save(filename=catalogfile)
+
     elif args.command == 'install':
-        install_dir = config.get('Install', 'directory')
-        shell_version = get_gnome_shell_version()
+        gnome_shell_version = get_gnome_shell_version()
 
         catalog.load(filename=catalogfile)
-
-        installed_extensions = Catalog()
-        installed_extensions.build_from_paths(
-                DEFAULT_GLOBAL_INSTALL_DIR,
-                install_dir
-                )
-
-        gnome_shell_version = get_gnome_shell_version()
 
         for extension in set(args.extensions):
             install = False
