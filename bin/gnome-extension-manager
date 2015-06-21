@@ -368,6 +368,9 @@ def install_extensions(extensions, catalog, installed_extensions, shell_version)
             ext.download(dl_url)
             ext.install(install_dir)
 
+def activate(extensions, installed_extensions):
+    pass
+
 def init_argparser():
     """
     This function does the whole parsing oft command line arguments
@@ -439,6 +442,7 @@ def init_confparser(config_file):
 
     parser.add_section('Install')
     parser.set('Install', 'directory', DEFAULT_INSTALL_DIR)
+    parser.set('Install', 'activate', True)
 
     parser.read(config_file)
 
@@ -490,6 +494,11 @@ if __name__ == '__main__':
                 installed_extensions=installed_extensions,
                 shell_version=gnome_shell_version,
                 )
+        if config.get('Install', 'activate'):
+            activate(
+                    extensions=args.extensions,
+                    installed_extensions=installed_extensions,
+                    )
 
 
 # vim:fdm=indent:ts=4:sw=4:sts=4:ai:sta:et
