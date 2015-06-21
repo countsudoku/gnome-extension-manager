@@ -444,33 +444,33 @@ if __name__ == '__main__':
 
     elif args.command == 'install':
         gnome_shell_version = get_gnome_shell_version()
-
         catalog.load(filename=catalogfile)
 
         for extension in set(args.extensions):
             install = False
-            e = catalog.get_extension(
+            ext = catalog.get_extension(
                     uuid=extension,
                     shell_version=gnome_shell_version,
                     )
             try:
-                i = installed_extensions.get_extension(
+                install_candidate = installed_extensions.get_extension(
                     uuid=extension,
                     shell_version=gnome_shell_version,
                     )
             except NotInCatalog :
                 install = True
             else:
-                if e > i:
+                if ext > install_candidate:
                     install = True
                 else:
-                    print "{0} is allready installed and no update available".format(e.uuid)
+                    print "{0} is allready installed and no update available".format(ext.uuid)
+            del(install_candidate)
 
             if install:
-                dl_url = e.get_download_url(
+                dl_url = ext.get_download_url(
                         config.get('Catalog', 'url')
                         )
-                e.download(dl_url)
-                e.install(install_dir)
+                ext.download(dl_url)
+                ext.install(install_dir)
 
 # vim:fdm=indent:ts=4:sw=4:sts=4:ai:sta:et
