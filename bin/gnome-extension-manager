@@ -359,7 +359,7 @@ def install_extensions(extensions, catalog, installed_extensions, shell_version)
                 install = True
             else:
                 print("{0} is allready installed and no update available".format(ext.uuid))
-        del(install_candidate)
+            del install_candidate
 
         if install:
             dl_url = ext.get_download_url(
