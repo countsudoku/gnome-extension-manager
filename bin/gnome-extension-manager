@@ -145,10 +145,12 @@ class Extension(object):
             print 'Reason: ', e.reason
             sys.exit(1)
 
-        self.zfile = tempfile.SpooledTemporaryFile()
-        self.zfile.write(response.read())
+        zfile = tempfile.SpooledTemporaryFile()
+        zfile.write(response.read())
 
-    def install(self, path):
+        return zfile
+
+    def install(self, path, zfile):
         """
         Install the extension in file to the path
         """
@@ -157,10 +159,10 @@ class Extension(object):
         if not os.path.exists(install_directory):
             os.makedirs(install_directory)
 
-        with zipfile.ZipFile(self.zfile, 'r') as z:
+        with zipfile.ZipFile(zfile, 'r') as z:
             z.extractall(install_directory)
-        self.zfile.close()
-        del self.zfile
+        zfile.close()
+        del zfile
 
     def remove(self, path):
         """
@@ -297,7 +299,7 @@ class Catalog(object):
         """
         dirs = []
         for path in paths:
-            dirs += ["{0}/{1}".format(path,x) for x in os.listdir(path)]
+            dirs += ["{0}/{1}".format(path, x) for x in os.listdir(path)]
 
         extensions = {}
         for directory in dirs:
@@ -314,7 +316,7 @@ def get_gnome_shell_version():
     This function is to get the installed gnome-shell version
     """
     GNOME_SHELL_IFACE = 'org.gnome.Shell'
-    GNOME_SHELL_PATH  = '/org/gnome/Shell'
+    GNOME_SHELL_PATH = '/org/gnome/Shell'
 
     bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
     proxy = Gio.DBusProxy.new_sync(
@@ -327,10 +329,14 @@ def get_gnome_shell_version():
             None
             )
 
-    path = GLib.Variant('(ss)' ,('org.gnome.Shell.Extensions', 'ShellVersion'))
-    return proxy.Get('(ss)' ,'org.gnome.Shell.Extensions', 'ShellVersion')
+    return proxy.Get('(ss)', 'org.gnome.Shell.Extensions', 'ShellVersion')
 
-def install_extensions(extensions, catalog, installed_extensions, shell_version):
+def install_extensions(
+        extensions,
+        catalog,
+        installed_extensions,
+        shell_version,
+        ):
     """
     Method to installe specified Extensions
 
@@ -359,15 +365,16 @@ def install_extensions(extensions, catalog, installed_extensions, shell_version)
             if ext > install_candidate:
                 install = True
             else:
-                print("{0} is allready installed and no update available".format(ext.uuid))
+                print(
+                    "{0} is allready installed and no update available".
+                    format(ext.uuid))
             del install_candidate
 
         if install:
             dl_url = ext.get_download_url(
                     config.get('Catalog', 'url')
                     )
-            ext.download(dl_url)
-            ext.install(install_dir)
+            ext.install(install_dir, ext.download(dl_url))
 
 def activate_extensions(extensions, installed_extensions, shell_version):
     """
@@ -410,7 +417,8 @@ def init_argparser():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-c', '--config',
-            help='specify an alternative configuratin file. (default: {0})'.format(DEFAULT_CONFIG_FILE),
+            help='specify an alternative configuratin file. (default: {0})'.
+                format(DEFAULT_CONFIG_FILE),
             default=DEFAULT_CONFIG_FILE,
             dest='config_file'
             )
@@ -537,6 +545,5 @@ if __name__ == '__main__':
                 installed_extensions=installed_extensions,
                 shell_version=gnome_shell_version,
                 )
-
 
 # vim:fdm=indent:ts=4:sw=4:sts=4:ai:sta:et
