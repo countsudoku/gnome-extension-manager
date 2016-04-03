@@ -12,8 +12,6 @@ from datetime import datetime
 from gi.repository import Gio, GLib
 from json import JSONDecoder, JSONEncoder
 import os
-import re
-import subprocess
 import sys
 import tempfile
 import urllib2
