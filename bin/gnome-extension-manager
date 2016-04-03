@@ -49,11 +49,13 @@ DEFAULT_CONFIG_FILE = os.path.join(DEFAULT_CONFIG_DIR,
         'config.ini')
 
 class NotInCatalog(Exception):
+    """
+    A Exception which should be thrown, when extension isn't find in the catalog
+    """
     def __init__(self, uuid):
-        self.uuid = uuid
-
-    def __str__(self):
-        return "Can't find extension {0} in catalog".format(self.uuid)
+        super(NotInCatalog, self).__init__(
+                "Can't find extension {0} in catalog".format(uuid)
+                )
 
 class Extension(object):
     """
